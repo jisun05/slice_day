@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart';
+import '../models/record_model.dart';
+import '../services/record_service.dart';
 import '../widgets/circular_schedule_painter.dart';
-import '../models/task_record.dart';
-import 'dart:math';
-import './history_screen.dart';
+import 'history_screen.dart';
 
 class HomeScreen extends StatefulWidget {
-  const HomeScreen({super.key});
+  final RecordService recordService;
+
+  const HomeScreen({super.key, required this.recordService});
 
   @override
   State<HomeScreen> createState() => _HomeScreenState();
@@ -52,6 +54,17 @@ class _HomeScreenState extends State<HomeScreen> {
           : '${blocks[blockIndex]}, ${taskController.text}';
       taskController.clear();
     });
+
+    // ✅ 저장
+    final today = DateTime.now().toIso8601String().split('T').first;
+    final record = RecordModel(
+      date: today,
+      tasks: blocks,
+      wakeUpHour: wakeUpTime!.hour,
+      sleepHour: sleepHour,
+    );
+
+    widget.recordService.saveRecordModel(record);
   }
 
   void _changeBlockCount(int count) {
@@ -63,19 +76,21 @@ class _HomeScreenState extends State<HomeScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final wakeUpText = wakeUpTime != null
-        ? '기상 시간: ${wakeUpTime!.format(context)}'
-        : 'START';
+    final wakeUpText =
+    wakeUpTime != null ? '기상 시간: ${wakeUpTime!.format(context)}' : 'START';
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Slice Day Clock'),
+      appBar: AppBar(
+        title: const Text('Slice Day Clock'),
         actions: [
           IconButton(
             icon: const Icon(Icons.history),
             onPressed: () {
               Navigator.push(
                 context,
-                MaterialPageRoute(builder: (context) => const HistoryScreen()),
+                MaterialPageRoute(
+                  builder: (context) => HistoryScreen(recordService: widget.recordService),
+                ),
               );
             },
           )
