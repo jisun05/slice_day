@@ -20,14 +20,16 @@ class RecordModelAdapter extends TypeAdapter<RecordModel> {
       date: fields[0] as String,
       tasks: (fields[1] as List).cast<String>(),
       wakeUpHour: fields[2] as int,
-      sleepHour: fields[3] as int,
+      wakeUpMinute: fields[3] as int,
+      sleepTime: fields[4] as int,
+      sleepMinute: fields[5] as int,
     );
   }
 
   @override
   void write(BinaryWriter writer, RecordModel obj) {
     writer
-      ..writeByte(4)
+      ..writeByte(6)
       ..writeByte(0)
       ..write(obj.date)
       ..writeByte(1)
@@ -35,7 +37,11 @@ class RecordModelAdapter extends TypeAdapter<RecordModel> {
       ..writeByte(2)
       ..write(obj.wakeUpHour)
       ..writeByte(3)
-      ..write(obj.sleepHour);
+      ..write(obj.wakeUpMinute)
+      ..writeByte(4)
+      ..write(obj.sleepTime)
+      ..writeByte(5)
+      ..write(obj.sleepMinute);
   }
 
   @override

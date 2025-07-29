@@ -1,3 +1,4 @@
+// HomeScreen.dart
 import 'package:flutter/material.dart';
 import '../models/record_model.dart';
 import '../services/record_service.dart';
@@ -15,10 +16,10 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   TimeOfDay? wakeUpTime;
+  TimeOfDay sleepTime = const TimeOfDay(hour: 23, minute: 0);
   final TextEditingController taskController = TextEditingController();
   int blockCount = 4;
   List<String> blocks = List.filled(4, '');
-  int sleepHour = 23;
 
   void _startDay() {
     setState(() {
@@ -30,12 +31,13 @@ class _HomeScreenState extends State<HomeScreen> {
     if (wakeUpTime == null || taskController.text.isEmpty) return;
 
     final now = TimeOfDay.now();
-    final startHour = wakeUpTime!.hour;
-    final nowDecimal = now.hour + now.minute / 60;
-    final startDecimal = startHour.toDouble();
-    final totalHours = (sleepHour >= startHour)
-        ? sleepHour - startHour
-        : 24 - startHour + sleepHour;
+    final startDecimal = wakeUpTime!.hour + wakeUpTime!.minute / 60.0;
+    final nowDecimal = now.hour + now.minute / 60.0;
+    final sleepDecimal = sleepTime.hour + sleepTime.minute / 60.0;
+
+    final totalHours = (sleepDecimal >= startDecimal)
+        ? sleepDecimal - startDecimal
+        : 24 - startDecimal + sleepDecimal;
 
     if (totalHours <= 0) return;
 
@@ -55,13 +57,14 @@ class _HomeScreenState extends State<HomeScreen> {
       taskController.clear();
     });
 
-    // ✅ 저장
     final today = DateTime.now().toIso8601String().split('T').first;
     final record = RecordModel(
       date: today,
       tasks: blocks,
       wakeUpHour: wakeUpTime!.hour,
-      sleepHour: sleepHour,
+      wakeUpMinute: wakeUpTime!.minute,
+      sleepTime: sleepTime.hour,
+      sleepMinute: sleepTime.minute,
     );
 
     widget.recordService.saveRecordModel(record);
@@ -74,6 +77,77 @@ class _HomeScreenState extends State<HomeScreen> {
     });
   }
 
+  void _selectSleepTime() async {
+    int selectedHour = sleepTime.hour;
+    int selectedMinute = sleepTime.minute;
+
+    await showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text('취침 시간 설정'),
+          content: StatefulBuilder(
+            builder: (context, setState) {
+              return Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  DropdownButton<int>(
+                    value: selectedHour,
+                    items: List.generate(24, (index) {
+                      return DropdownMenuItem(
+                        value: index,
+                        child: Text('$index시'),
+                      );
+                    }),
+                    onChanged: (value) {
+                      setState(() {
+                        selectedHour = value!;
+                      });
+                    },
+                  ),
+                  const SizedBox(width: 16),
+                  DropdownButton<int>(
+                    value: selectedMinute,
+                    items: List.generate(60, (index) {
+                      return DropdownMenuItem(
+                        value: index,
+                        child: Text('$index분'),
+                      );
+                    }),
+                    onChanged: (value) {
+                      setState(() {
+                        selectedMinute = value!;
+                      });
+                    },
+                  ),
+                ],
+              );
+            },
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('취소'),
+            ),
+            TextButton(
+              onPressed: () {
+                setState(() {
+                  sleepTime = TimeOfDay(
+                    hour: selectedHour,
+                    minute: selectedMinute,
+                  );
+                });
+                Navigator.pop(context);
+              },
+              child: const Text('확인'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+
   @override
   Widget build(BuildContext context) {
     final wakeUpText =
@@ -84,16 +158,22 @@ class _HomeScreenState extends State<HomeScreen> {
         title: const Text('Slice Day Clock'),
         actions: [
           IconButton(
+            icon: const Icon(Icons.nightlight_round),
+            tooltip: '취침시간 설정',
+            onPressed: _selectSleepTime,
+          ),
+          IconButton(
             icon: const Icon(Icons.history),
             onPressed: () {
               Navigator.push(
                 context,
                 MaterialPageRoute(
-                  builder: (context) => HistoryScreen(recordService: widget.recordService),
+                  builder: (context) =>
+                      HistoryScreen(recordService: widget.recordService),
                 ),
               );
             },
-          )
+          ),
         ],
       ),
       body: Padding(
@@ -143,7 +223,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 painter: CircularSchedulePainter(
                   tasks: blocks,
                   wakeUpTime: wakeUpTime,
-                  sleepHour: sleepHour,
+                  sleepTime: sleepTime,
                 ),
               ),
             ),

@@ -5,14 +5,14 @@ class HistoryDetailScreen extends StatelessWidget {
   final String date;
   final List<String> tasks;
   final TimeOfDay wakeUpTime;
-  final int sleepHour;
+  final TimeOfDay  sleepTime;
 
   const HistoryDetailScreen({
     super.key,
     required this.date,
     required this.tasks,
     required this.wakeUpTime,
-    required this.sleepHour,
+    required this.sleepTime,
   });
 
   @override
@@ -25,7 +25,7 @@ class HistoryDetailScreen extends StatelessWidget {
           painter: CircularSchedulePainter(
             tasks: tasks,
             wakeUpTime: wakeUpTime,
-            sleepHour: sleepHour,
+            sleepTime: sleepTime,
           ),
         ),
       ),

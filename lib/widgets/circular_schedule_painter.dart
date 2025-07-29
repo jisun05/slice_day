@@ -4,12 +4,12 @@ import 'dart:math';
 class CircularSchedulePainter extends CustomPainter {
   final List<String> tasks;
   final TimeOfDay? wakeUpTime;
-  final int sleepHour;
+  final TimeOfDay sleepTime;
 
   CircularSchedulePainter({
     required this.tasks,
     required this.wakeUpTime,
-    required this.sleepHour,
+    required this.sleepTime,
   });
 
   @override
@@ -23,7 +23,7 @@ class CircularSchedulePainter extends CustomPainter {
 
     const totalHours = 24;
     final wakeUp = wakeUpTime!.hour + wakeUpTime!.minute / 60.0;
-    final sleep = sleepHour.toDouble();
+    final sleep = sleepTime.hour + sleepTime.minute / 60.0;
 
     final sleepStart = sleep;
     final sleepEnd = wakeUp < sleep ? wakeUp + 24 : wakeUp;
@@ -128,14 +128,13 @@ class CircularSchedulePainter extends CustomPainter {
     final m = ((hour - h) * 60).round();
     final hStr = h.toString().padLeft(2, '0');
     final mStr = m.toString().padLeft(2, '0');
-    return '${hStr}:${mStr}';
+    return '$hStr:$mStr';
   }
-
 
   @override
   bool shouldRepaint(covariant CircularSchedulePainter oldDelegate) {
     return oldDelegate.tasks != tasks ||
         oldDelegate.wakeUpTime != wakeUpTime ||
-        oldDelegate.sleepHour != sleepHour;
+        oldDelegate.sleepTime != sleepTime;
   }
 }

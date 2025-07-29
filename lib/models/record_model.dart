@@ -3,7 +3,7 @@ import 'package:hive/hive.dart';
 part 'record_model.g.dart'; // 자동 생성될 파일
 
 @HiveType(typeId: 0)
-class RecordModel  extends HiveObject {
+class RecordModel extends HiveObject {
   @HiveField(0)
   String date;
 
@@ -14,12 +14,20 @@ class RecordModel  extends HiveObject {
   int wakeUpHour;
 
   @HiveField(3)
-  int sleepHour;
+  int wakeUpMinute;
 
-  RecordModel ({
+  @HiveField(4)
+  int sleepTime;
+
+  @HiveField(5)
+  int sleepMinute;
+
+  RecordModel({
     required this.date,
     required this.tasks,
     required this.wakeUpHour,
-    required this.sleepHour,
+    required this.wakeUpMinute,
+    required this.sleepTime,
+    required this.sleepMinute,
   });
 }

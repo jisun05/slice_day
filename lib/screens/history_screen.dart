@@ -92,7 +92,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
                       date: record.date,
                       tasks: record.tasks,
                       wakeUpTime: wakeUpTime,
-                      sleepHour: record.sleepHour,
+                      sleepTime: TimeOfDay(hour: record.sleepTime, minute: 0),
                     ),
                   ),
                 );
