@@ -26,7 +26,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
   }
 
   void _deleteRecord(String date) async {
-    await widget.recordService.deleteRecord(date); // 메서드 이름 일치
+    await widget.recordService.deleteRecordByDate(date); // 메서드 이름 일치
     await _loadRecords(); // 다시 로드
   }
 
