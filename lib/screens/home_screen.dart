@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../models/record_model.dart';
 import '../services/record_service.dart';
 import '../widgets/circular_schedule_painter.dart';
 import 'history_screen.dart';
-import 'dart:async'; // 🔹 추가: Timer 사용을 위해
+import 'dart:async';
+import 'dart:convert';
 
 class HomeScreen extends StatefulWidget {
   final RecordService recordService;
@@ -20,28 +22,56 @@ class _HomeScreenState extends State<HomeScreen> {
   final TextEditingController taskController = TextEditingController();
   int blockCount = 4;
   List<String> blocks = List.filled(4, '');
-
-  Timer? _checkTimer; // 🔹 추가: 반복 체크용 타이머
+  Timer? _checkTimer;
 
   @override
   void initState() {
     super.initState();
-    _checkResetWakeUpTime(); // 🔹 최초 진입 시 체크
+    _loadState();
     _checkTimer = Timer.periodic(const Duration(minutes: 1), (_) {
-      _checkResetWakeUpTime(); // 🔹 1분마다 자동 체크
+      _checkResetWakeUpTime();
     });
   }
 
   @override
   void dispose() {
-    _checkTimer?.cancel(); // 🔹 타이머 해제
+    _checkTimer?.cancel();
     super.dispose();
   }
 
-  // 🔹 기상 시간 초기화 로직
+  Future<void> _loadState() async {
+    final prefs = await SharedPreferences.getInstance();
+    final wakeHour = prefs.getInt('wakeUpHour');
+    final wakeMin = prefs.getInt('wakeUpMinute');
+    final blockJson = prefs.getString('blocks');
+    final blockCt = prefs.getInt('blockCount') ?? 4;
+
+    setState(() {
+      blockCount = blockCt;
+      if (wakeHour != null && wakeMin != null) {
+        wakeUpTime = TimeOfDay(hour: wakeHour, minute: wakeMin);
+      }
+      if (blockJson != null) {
+        blocks = List<String>.from(json.decode(blockJson));
+      } else {
+        blocks = List.filled(blockCount, '');
+      }
+    });
+    _checkResetWakeUpTime();
+  }
+
+  Future<void> _saveState() async {
+    final prefs = await SharedPreferences.getInstance();
+    if (wakeUpTime != null) {
+      await prefs.setInt('wakeUpHour', wakeUpTime!.hour);
+      await prefs.setInt('wakeUpMinute', wakeUpTime!.minute);
+    }
+    await prefs.setInt('blockCount', blockCount);
+    await prefs.setString('blocks', json.encode(blocks));
+  }
+
   void _checkResetWakeUpTime() {
     if (wakeUpTime == null) return;
-
     final now = DateTime.now();
     final today = DateTime(now.year, now.month, now.day);
 
@@ -61,7 +91,6 @@ class _HomeScreenState extends State<HomeScreen> {
       sleepTime.minute,
     );
 
-    // 기상 시간이 취침 시간보다 나중일 경우, 취침은 다음 날로 설정
     if (sleepTime.hour < wakeUpTime!.hour ||
         (sleepTime.hour == wakeUpTime!.hour &&
             sleepTime.minute < wakeUpTime!.minute)) {
@@ -71,16 +100,23 @@ class _HomeScreenState extends State<HomeScreen> {
     if (now.isAfter(sleepDateTime)) {
       setState(() {
         wakeUpTime = null;
-        blocks = List.filled(blockCount, ''); // 🔹 블록도 초기화
+        blocks = List.filled(blockCount, '');
+      });
+      SharedPreferences.getInstance().then((prefs) {
+        prefs.remove('wakeUpHour');
+        prefs.remove('wakeUpMinute');
+        prefs.remove('blocks');
       });
     }
   }
 
   void _startDay() {
-    if (wakeUpTime != null) return; // 🔹 이미 설정되어 있으면 무시
+    if (wakeUpTime != null) return;
     setState(() {
       wakeUpTime = TimeOfDay.now();
+      blocks = List.filled(blockCount, '');
     });
+    _saveState();
   }
 
   void _submitTask() {
@@ -113,7 +149,6 @@ class _HomeScreenState extends State<HomeScreen> {
         .toList();
 
     if (currentTasks.length >= 6) {
-      // 최대 6개 제한
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('한 블록당 최대 6개의 업무만 입력할 수 있어요.')),
       );
@@ -126,7 +161,7 @@ class _HomeScreenState extends State<HomeScreen> {
           : '${blocks[blockIndex]}, ${taskController.text}';
       taskController.clear();
     });
-
+    _saveState();
 
     final today = DateTime.now().toIso8601String().split('T').first;
     final record = RecordModel(
@@ -175,6 +210,7 @@ class _HomeScreenState extends State<HomeScreen> {
       blockCount = count;
       blocks = newBlocks;
     });
+    _saveState();
   }
 
   void _selectSleepTime() async {
@@ -249,9 +285,6 @@ class _HomeScreenState extends State<HomeScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final wakeUpText =
-    wakeUpTime != null ? '기상 시간: ${wakeUpTime!.format(context)}' : 'START';
-
     return Scaffold(
       appBar: AppBar(
         title: const Text('Slice Day Clock'),
@@ -280,14 +313,12 @@ class _HomeScreenState extends State<HomeScreen> {
         child: Column(
           children: [
             ElevatedButton(
-              onPressed: wakeUpTime == null ? _startDay : null, // 🔹 이미 설정됐으면 null로 비활성화
+              onPressed: wakeUpTime == null ? _startDay : null,
               style: ButtonStyle(
                 mouseCursor: MaterialStateProperty.resolveWith((states) {
-                  if (wakeUpTime != null) {
-                    return SystemMouseCursors.basic; // 🔹 클릭 불가능한 커서
-                  } else {
-                    return SystemMouseCursors.click; // 🔹 클릭 가능할 때만 손모양 커서
-                  }
+                  return wakeUpTime == null
+                      ? SystemMouseCursors.click
+                      : SystemMouseCursors.basic;
                 }),
               ),
               child: Text(wakeUpTime != null
