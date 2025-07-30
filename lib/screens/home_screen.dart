@@ -1,9 +1,9 @@
-// HomeScreen.dart
 import 'package:flutter/material.dart';
 import '../models/record_model.dart';
 import '../services/record_service.dart';
 import '../widgets/circular_schedule_painter.dart';
 import 'history_screen.dart';
+import 'dart:async'; // 🔹 추가: Timer 사용을 위해
 
 class HomeScreen extends StatefulWidget {
   final RecordService recordService;
@@ -21,7 +21,63 @@ class _HomeScreenState extends State<HomeScreen> {
   int blockCount = 4;
   List<String> blocks = List.filled(4, '');
 
+  Timer? _checkTimer; // 🔹 추가: 반복 체크용 타이머
+
+  @override
+  void initState() {
+    super.initState();
+    _checkResetWakeUpTime(); // 🔹 최초 진입 시 체크
+    _checkTimer = Timer.periodic(const Duration(minutes: 1), (_) {
+      _checkResetWakeUpTime(); // 🔹 1분마다 자동 체크
+    });
+  }
+
+  @override
+  void dispose() {
+    _checkTimer?.cancel(); // 🔹 타이머 해제
+    super.dispose();
+  }
+
+  // 🔹 기상 시간 초기화 로직
+  void _checkResetWakeUpTime() {
+    if (wakeUpTime == null) return;
+
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+
+    final wakeUpDateTime = DateTime(
+      today.year,
+      today.month,
+      today.day,
+      wakeUpTime!.hour,
+      wakeUpTime!.minute,
+    );
+
+    DateTime sleepDateTime = DateTime(
+      today.year,
+      today.month,
+      today.day,
+      sleepTime.hour,
+      sleepTime.minute,
+    );
+
+    // 기상 시간이 취침 시간보다 나중일 경우, 취침은 다음 날로 설정
+    if (sleepTime.hour < wakeUpTime!.hour ||
+        (sleepTime.hour == wakeUpTime!.hour &&
+            sleepTime.minute < wakeUpTime!.minute)) {
+      sleepDateTime = sleepDateTime.add(const Duration(days: 1));
+    }
+
+    if (now.isAfter(sleepDateTime)) {
+      setState(() {
+        wakeUpTime = null;
+        blocks = List.filled(blockCount, ''); // 🔹 블록도 초기화
+      });
+    }
+  }
+
   void _startDay() {
+    if (wakeUpTime != null) return; // 🔹 이미 설정되어 있으면 무시
     setState(() {
       wakeUpTime = TimeOfDay.now();
     });
@@ -50,12 +106,27 @@ class _HomeScreenState extends State<HomeScreen> {
     if (blockIndex < 0) blockIndex = 0;
     if (blockIndex >= blockCount) blockIndex = blockCount - 1;
 
+    final currentTasks = blocks[blockIndex]
+        .split(',')
+        .map((e) => e.trim())
+        .where((e) => e.isNotEmpty)
+        .toList();
+
+    if (currentTasks.length >= 6) {
+      // 최대 6개 제한
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('한 블록당 최대 6개의 업무만 입력할 수 있어요.')),
+      );
+      return;
+    }
+
     setState(() {
       blocks[blockIndex] = blocks[blockIndex].isEmpty
           ? taskController.text
           : '${blocks[blockIndex]}, ${taskController.text}';
       taskController.clear();
     });
+
 
     final today = DateTime.now().toIso8601String().split('T').first;
     final record = RecordModel(
@@ -86,13 +157,13 @@ class _HomeScreenState extends State<HomeScreen> {
     for (int i = 0; i < oldBlockCount; i++) {
       if (oldBlocks[i].isEmpty) continue;
 
-      // 기존 블록의 시간 범위
       final oldBlockStart = startDecimal + i * totalHours / oldBlockCount;
       final blockMid = oldBlockStart + totalHours / oldBlockCount / 2;
       final normalizedMid = blockMid % 24;
 
-      // 새로운 블록 인덱스 계산
-      final newIndex = ((normalizedMid - startDecimal + 24) % 24 / totalHours * count).floor();
+      final newIndex =
+      ((normalizedMid - startDecimal + 24) % 24 / totalHours * count)
+          .floor();
       final clampedIndex = newIndex.clamp(0, count - 1);
 
       newBlocks[clampedIndex] = newBlocks[clampedIndex].isEmpty
@@ -105,7 +176,6 @@ class _HomeScreenState extends State<HomeScreen> {
       blocks = newBlocks;
     });
   }
-
 
   void _selectSleepTime() async {
     int selectedHour = sleepTime.hour;
@@ -177,7 +247,6 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-
   @override
   Widget build(BuildContext context) {
     final wakeUpText =
@@ -211,8 +280,19 @@ class _HomeScreenState extends State<HomeScreen> {
         child: Column(
           children: [
             ElevatedButton(
-              onPressed: _startDay,
-              child: Text(wakeUpText),
+              onPressed: wakeUpTime == null ? _startDay : null, // 🔹 이미 설정됐으면 null로 비활성화
+              style: ButtonStyle(
+                mouseCursor: MaterialStateProperty.resolveWith((states) {
+                  if (wakeUpTime != null) {
+                    return SystemMouseCursors.basic; // 🔹 클릭 불가능한 커서
+                  } else {
+                    return SystemMouseCursors.click; // 🔹 클릭 가능할 때만 손모양 커서
+                  }
+                }),
+              ),
+              child: Text(wakeUpTime != null
+                  ? '기상 시간: ${wakeUpTime!.format(context)}'
+                  : 'START'),
             ),
             const SizedBox(height: 8),
             Row(

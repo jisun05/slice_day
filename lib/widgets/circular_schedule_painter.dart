@@ -39,6 +39,7 @@ class CircularSchedulePainter extends CustomPainter {
       Colors.purpleAccent,
     ];
 
+    // Draw sleep arc
     final sleepSpan = sleepEnd - sleepStart;
     final sleepStartAngle = 2 * pi * (sleepStart / totalHours) - pi / 2;
     final sleepSweepAngle = 2 * pi * (sleepSpan / totalHours);
@@ -54,6 +55,7 @@ class CircularSchedulePainter extends CustomPainter {
     paint.color = Colors.grey.shade300;
     canvas.drawPath(sleepPath, paint);
 
+    // Draw awake blocks
     final awakeSpan = awakeEnd - awakeStart;
     final blockSpan = awakeSpan / tasks.length;
 
@@ -76,36 +78,83 @@ class CircularSchedulePainter extends CustomPainter {
         ..close();
       canvas.drawPath(path, paint);
 
+     //show task list
       if (task.isNotEmpty) {
-        final maxLetters = (sweepAngle * radius / 10).floor().clamp(2, 15);
-        final displayText = task.length > maxLetters
-            ? task.substring(0, maxLetters) + '…'
-            : task;
+        final rawItems = task
+            .split(',')
+            .map((e) => e.trim())
+            .where((e) => e.isNotEmpty)
+            .toList();
 
-        final textPainter = TextPainter(
-          text: TextSpan(
-            text: displayText,
-            style: const TextStyle(
-              color: Colors.black,
-              fontSize: 13,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-          textDirection: TextDirection.ltr,
-        );
-        textPainter.layout();
+        final texts = <String>[];
+        for (int j = 0; j < rawItems.length && j < 6; j++) {
+          final isLast = j == rawItems.length - 1 || j == 5;
+          final item = rawItems[j];
+          texts.add(isLast ? item : '$item,');
+        }
 
         final angleMid = startAngle + sweepAngle / 2;
-        final textRadius = (radius + innerRadius) / 2;
+        final baseRadius = (radius + innerRadius) / 2;
 
-        final dx = center.dx + textRadius * cos(angleMid);
-        final dy = center.dy + textRadius * sin(angleMid);
+        final lineCount = texts.length.clamp(1, 6);
+        final spacing = 20.0;
+        final startOffset = -(lineCount - 1) / 2 * spacing;
 
-        canvas.save();
-        canvas.translate(dx, dy);
-        canvas.rotate(angleMid + pi / 2); // ↩️ 회전 방향 조정
-        textPainter.paint(canvas, Offset(-textPainter.width / 2, -textPainter.height / 2));
-        canvas.restore();
+        final sorted = texts
+            .asMap()
+            .entries
+            .toList()
+          ..sort((a, b) => a.value.length.compareTo(b.value.length));
+
+        final indexedRadii = List.generate(
+          lineCount,
+              (i) => baseRadius + startOffset + i * spacing,
+        );
+
+        final textWithRadius = List<String>.filled(lineCount, '');
+        final radiiWithText = List<double>.filled(lineCount, 0);
+
+        for (int j = 0; j < sorted.length; j++) {
+          final idx = sorted[j].key;
+          final txt = sorted[j].value;
+          textWithRadius[idx] = txt;
+          radiiWithText[idx] = indexedRadii[j];
+        }
+
+        for (int j = 0; j < lineCount; j++) {
+          final displayText = textWithRadius[j].length > 10
+              ? textWithRadius[j].substring(0, 10) + '…'
+              : textWithRadius[j];
+
+          final dx = center.dx + radiiWithText[j] * cos(angleMid);
+          final dy = center.dy + radiiWithText[j] * sin(angleMid);
+
+          final textPainter = TextPainter(
+            text: TextSpan(
+              text: displayText,
+              style: const TextStyle(
+                color: Colors.black,
+                fontSize: 12,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            textDirection: TextDirection.ltr,
+          );
+          textPainter.layout();
+
+          canvas.save();
+          canvas.translate(dx, dy);
+
+          if (angleMid >= pi / 2 && angleMid <= 3 * pi / 2) {
+            canvas.rotate(angleMid - pi / 2);
+          } else {
+            canvas.rotate(angleMid + pi / 2);
+          }
+
+          canvas.translate(-textPainter.width / 2, -textPainter.height / 2);
+          textPainter.paint(canvas, Offset.zero);
+          canvas.restore();
+        }
       }
 
       _drawTimeLabel(canvas, center, labelRadius, blockStartHour % 24, totalHours);
@@ -136,7 +185,6 @@ class CircularSchedulePainter extends CustomPainter {
     int h = hour.floor() % 24;
     int m = ((hour - h) * 60).round();
 
-
     if (m >= 60) {
       m -= 60;
       h = (h + 1) % 24;
@@ -146,7 +194,6 @@ class CircularSchedulePainter extends CustomPainter {
     final mStr = m.toString().padLeft(2, '0');
     return '$hStr:$mStr';
   }
-
 
   @override
   bool shouldRepaint(covariant CircularSchedulePainter oldDelegate) {
