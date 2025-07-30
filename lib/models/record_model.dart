@@ -1,6 +1,6 @@
 import 'package:hive/hive.dart';
 
-part 'record_model.g.dart';
+part 'record_model.g.dart'; // 이 파일은 build_runner로 생성됨
 
 @HiveType(typeId: 0)
 class RecordModel extends HiveObject {
@@ -17,7 +17,7 @@ class RecordModel extends HiveObject {
   int wakeUpMinute;
 
   @HiveField(4)
-  int sleepTime;
+  int sleepHour;
 
   @HiveField(5)
   int sleepMinute;
@@ -27,25 +27,29 @@ class RecordModel extends HiveObject {
     required this.tasks,
     required this.wakeUpHour,
     required this.wakeUpMinute,
-    required this.sleepTime,
+    required this.sleepHour,
     required this.sleepMinute,
   });
 
-  Map<String, dynamic> toMap() => {
-    'date': date,
-    'tasks': tasks,
-    'wakeUpHour': wakeUpHour,
-    'wakeUpMinute': wakeUpMinute,
-    'sleepTime': sleepTime,
-    'sleepMinute': sleepMinute,
-  };
+  Map<String, dynamic> toMap() {
+    return {
+      'date': date,
+      'tasks': tasks,
+      'wakeUpHour': wakeUpHour,
+      'wakeUpMinute': wakeUpMinute,
+      'sleepTime': sleepHour,
+      'sleepMinute': sleepMinute,
+    };
+  }
 
-  factory RecordModel.fromMap(Map<String, dynamic> map) => RecordModel(
-    date: map['date'],
-    tasks: List<String>.from(map['tasks']),
-    wakeUpHour: map['wakeUpHour'],
-    wakeUpMinute: map['wakeUpMinute'],
-    sleepTime: map['sleepTime'],
-    sleepMinute: map['sleepMinute'],
-  );
+  factory RecordModel.fromMap(Map<String, dynamic> map) {
+    return RecordModel(
+      date: map['date'] as String,
+      tasks: List<String>.from(map['tasks']),
+      wakeUpHour: map['wakeUpHour'] as int,
+      wakeUpMinute: map['wakeUpMinute'] as int,
+      sleepHour: map['sleepHour'] as int,
+      sleepMinute: map['sleepMinute'] as int,
+    );
+  }
 }

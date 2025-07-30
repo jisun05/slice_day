@@ -1,11 +1,10 @@
 import 'package:flutter/material.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import '../models/record_model.dart';
 import '../services/record_service.dart';
 import '../widgets/circular_schedule_painter.dart';
 import 'history_screen.dart';
 import 'dart:async';
-import 'dart:convert';
+import 'package:hive/hive.dart';
 
 class HomeScreen extends StatefulWidget {
   final RecordService recordService;
@@ -27,7 +26,8 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   void initState() {
     super.initState();
-    _loadState();
+    _loadSleepTime();
+    _checkResetWakeUpTime();
     _checkTimer = Timer.periodic(const Duration(minutes: 1), (_) {
       _checkResetWakeUpTime();
     });
@@ -39,39 +39,28 @@ class _HomeScreenState extends State<HomeScreen> {
     super.dispose();
   }
 
-  Future<void> _loadState() async {
-    final prefs = await SharedPreferences.getInstance();
-    final wakeHour = prefs.getInt('wakeUpHour');
-    final wakeMin = prefs.getInt('wakeUpMinute');
-    final blockJson = prefs.getString('blocks');
-    final blockCt = prefs.getInt('blockCount') ?? 4;
-
-    setState(() {
-      blockCount = blockCt;
-      if (wakeHour != null && wakeMin != null) {
-        wakeUpTime = TimeOfDay(hour: wakeHour, minute: wakeMin);
-      }
-      if (blockJson != null) {
-        blocks = List<String>.from(json.decode(blockJson));
-      } else {
-        blocks = List.filled(blockCount, '');
-      }
-    });
-    _checkResetWakeUpTime();
+  /// 🔸 저장된 취침시간 불러오기
+  Future<void> _loadSleepTime() async {
+    final box = await Hive.openBox('settings');
+    final int? hour = box.get('sleepHour');
+    final int? minute = box.get('sleepMinute');
+    if (hour != null && minute != null) {
+      setState(() {
+        sleepTime = TimeOfDay(hour: hour, minute: minute);
+      });
+    }
   }
 
-  Future<void> _saveState() async {
-    final prefs = await SharedPreferences.getInstance();
-    if (wakeUpTime != null) {
-      await prefs.setInt('wakeUpHour', wakeUpTime!.hour);
-      await prefs.setInt('wakeUpMinute', wakeUpTime!.minute);
-    }
-    await prefs.setInt('blockCount', blockCount);
-    await prefs.setString('blocks', json.encode(blocks));
+  /// 🔸 취침시간 저장
+  Future<void> _saveSleepTime(TimeOfDay time) async {
+    final box = await Hive.openBox('settings');
+    await box.put('sleepHour', time.hour);
+    await box.put('sleepMinute', time.minute);
   }
 
   void _checkResetWakeUpTime() {
     if (wakeUpTime == null) return;
+
     final now = DateTime.now();
     final today = DateTime(now.year, now.month, now.day);
 
@@ -102,11 +91,6 @@ class _HomeScreenState extends State<HomeScreen> {
         wakeUpTime = null;
         blocks = List.filled(blockCount, '');
       });
-      SharedPreferences.getInstance().then((prefs) {
-        prefs.remove('wakeUpHour');
-        prefs.remove('wakeUpMinute');
-        prefs.remove('blocks');
-      });
     }
   }
 
@@ -114,9 +98,7 @@ class _HomeScreenState extends State<HomeScreen> {
     if (wakeUpTime != null) return;
     setState(() {
       wakeUpTime = TimeOfDay.now();
-      blocks = List.filled(blockCount, '');
     });
-    _saveState();
   }
 
   void _submitTask() {
@@ -161,7 +143,6 @@ class _HomeScreenState extends State<HomeScreen> {
           : '${blocks[blockIndex]}, ${taskController.text}';
       taskController.clear();
     });
-    _saveState();
 
     final today = DateTime.now().toIso8601String().split('T').first;
     final record = RecordModel(
@@ -169,7 +150,7 @@ class _HomeScreenState extends State<HomeScreen> {
       tasks: blocks,
       wakeUpHour: wakeUpTime!.hour,
       wakeUpMinute: wakeUpTime!.minute,
-      sleepTime: sleepTime.hour,
+      sleepHour: sleepTime.hour,
       sleepMinute: sleepTime.minute,
     );
 
@@ -210,7 +191,6 @@ class _HomeScreenState extends State<HomeScreen> {
       blockCount = count;
       blocks = newBlocks;
     });
-    _saveState();
   }
 
   void _selectSleepTime() async {
@@ -267,11 +247,11 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
             TextButton(
               onPressed: () {
+                final newTime =
+                TimeOfDay(hour: selectedHour, minute: selectedMinute);
+                _saveSleepTime(newTime);
                 setState(() {
-                  sleepTime = TimeOfDay(
-                    hour: selectedHour,
-                    minute: selectedMinute,
-                  );
+                  sleepTime = newTime;
                 });
                 Navigator.pop(context);
               },
@@ -314,13 +294,6 @@ class _HomeScreenState extends State<HomeScreen> {
           children: [
             ElevatedButton(
               onPressed: wakeUpTime == null ? _startDay : null,
-              style: ButtonStyle(
-                mouseCursor: MaterialStateProperty.resolveWith((states) {
-                  return wakeUpTime == null
-                      ? SystemMouseCursors.click
-                      : SystemMouseCursors.basic;
-                }),
-              ),
               child: Text(wakeUpTime != null
                   ? '기상 시간: ${wakeUpTime!.format(context)}'
                   : 'START'),

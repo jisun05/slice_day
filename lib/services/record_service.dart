@@ -1,35 +1,36 @@
-import 'package:hive/hive.dart';
 import 'package:flutter/material.dart';
+import 'package:hive/hive.dart';
 import '../models/record_model.dart';
 
 class RecordService {
-  final String boxName = 'daily_records';
+  static const _boxName = 'daily_records';
+  static const _sleepKey = 'sleep_time';
 
-  Future<void> saveRecordModel(RecordModel model) async {
-    final box = await Hive.openBox<RecordModel>(boxName);
-    box.put(model.date, model);
+  Future<void> saveRecordModel(RecordModel record) async {
+    final box = await Hive.openBox<RecordModel>(_boxName);
+    await box.put(record.date, record);
   }
 
   Future<List<RecordModel>> getAllRecords() async {
-    final box = await Hive.openBox<RecordModel>(boxName);
+    final box = await Hive.openBox<RecordModel>(_boxName);
     return box.values.toList();
   }
 
   Future<void> deleteRecordByDate(String date) async {
-    final box = await Hive.openBox<RecordModel>(boxName);
+    final box = await Hive.openBox<RecordModel>(_boxName);
     await box.delete(date);
   }
 
-  Future<void> saveSleepTime(TimeOfDay time) async {
-    final box = await Hive.openBox('settings');
-    box.put('sleepHour', time.hour);
-    box.put('sleepMinute', time.minute);
+  Future<void> saveSleepTime(int hour, int minute) async {
+    final box = await Hive.openBox(_sleepKey);
+    await box.put('hour', hour);
+    await box.put('minute', minute);
   }
-  
+
   Future<TimeOfDay> loadSleepTime() async {
-    final box = await Hive.openBox('settings');
-    final hour = box.get('sleepHour', defaultValue: 23);
-    final minute = box.get('sleepMinute', defaultValue: 0);
+    final box = await Hive.openBox(_sleepKey);
+    final hour = box.get('hour', defaultValue: 23);
+    final minute = box.get('minute', defaultValue: 0);
     return TimeOfDay(hour: hour, minute: minute);
   }
 }

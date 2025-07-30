@@ -21,7 +21,7 @@ class RecordModelAdapter extends TypeAdapter<RecordModel> {
       tasks: (fields[1] as List).cast<String>(),
       wakeUpHour: fields[2] as int,
       wakeUpMinute: fields[3] as int,
-      sleepTime: fields[4] as int,
+      sleepHour: fields[4] as int,
       sleepMinute: fields[5] as int,
     );
   }
@@ -39,7 +39,7 @@ class RecordModelAdapter extends TypeAdapter<RecordModel> {
       ..writeByte(3)
       ..write(obj.wakeUpMinute)
       ..writeByte(4)
-      ..write(obj.sleepTime)
+      ..write(obj.sleepHour)
       ..writeByte(5)
       ..write(obj.sleepMinute);
   }
