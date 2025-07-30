@@ -11,6 +11,11 @@ class RecordService {
     await box.put(record.date, record);
   }
 
+  Future<RecordModel?> getRecordByDate(String date) async {
+    final box = await Hive.openBox<RecordModel>(_boxName);
+    return box.get(date);
+  }
+
   Future<List<RecordModel>> getAllRecords() async {
     final box = await Hive.openBox<RecordModel>(_boxName);
     return box.values.toList();

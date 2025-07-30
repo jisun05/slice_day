@@ -27,7 +27,7 @@ class _HomeScreenState extends State<HomeScreen> {
   void initState() {
     super.initState();
     _loadSleepTime();
-    _checkResetWakeUpTime();
+    _loadTodayRecord();
     _checkTimer = Timer.periodic(const Duration(minutes: 1), (_) {
       _checkResetWakeUpTime();
     });
@@ -39,7 +39,6 @@ class _HomeScreenState extends State<HomeScreen> {
     super.dispose();
   }
 
-  /// 🔸 저장된 취침시간 불러오기
   Future<void> _loadSleepTime() async {
     final box = await Hive.openBox('settings');
     final int? hour = box.get('sleepHour');
@@ -51,11 +50,22 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
-  /// 🔸 취침시간 저장
   Future<void> _saveSleepTime(TimeOfDay time) async {
     final box = await Hive.openBox('settings');
     await box.put('sleepHour', time.hour);
     await box.put('sleepMinute', time.minute);
+  }
+
+  Future<void> _loadTodayRecord() async {
+    final today = DateTime.now().toIso8601String().split('T').first;
+    final record = await widget.recordService.getRecordByDate(today);
+
+    if (record != null) {
+      setState(() {
+        blocks = record.tasks;
+        wakeUpTime = TimeOfDay(hour: record.wakeUpHour, minute: record.wakeUpMinute);
+      });
+    }
   }
 
   void _checkResetWakeUpTime() {
@@ -99,6 +109,7 @@ class _HomeScreenState extends State<HomeScreen> {
     setState(() {
       wakeUpTime = TimeOfDay.now();
     });
+    _saveTodayRecord();
   }
 
   void _submitTask() {
@@ -144,16 +155,19 @@ class _HomeScreenState extends State<HomeScreen> {
       taskController.clear();
     });
 
+    _saveTodayRecord();
+  }
+
+  void _saveTodayRecord() {
     final today = DateTime.now().toIso8601String().split('T').first;
     final record = RecordModel(
       date: today,
       tasks: blocks,
-      wakeUpHour: wakeUpTime!.hour,
-      wakeUpMinute: wakeUpTime!.minute,
+      wakeUpHour: wakeUpTime?.hour ?? 0,
+      wakeUpMinute: wakeUpTime?.minute ?? 0,
       sleepHour: sleepTime.hour,
       sleepMinute: sleepTime.minute,
     );
-
     widget.recordService.saveRecordModel(record);
   }
 
@@ -247,12 +261,12 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
             TextButton(
               onPressed: () {
-                final newTime =
-                TimeOfDay(hour: selectedHour, minute: selectedMinute);
+                final newTime = TimeOfDay(hour: selectedHour, minute: selectedMinute);
                 _saveSleepTime(newTime);
                 setState(() {
                   sleepTime = newTime;
                 });
+                _saveTodayRecord();
                 Navigator.pop(context);
               },
               child: const Text('확인'),
@@ -280,8 +294,7 @@ class _HomeScreenState extends State<HomeScreen> {
               Navigator.push(
                 context,
                 MaterialPageRoute(
-                  builder: (context) =>
-                      HistoryScreen(recordService: widget.recordService),
+                  builder: (context) => HistoryScreen(recordService: widget.recordService),
                 ),
               );
             },
