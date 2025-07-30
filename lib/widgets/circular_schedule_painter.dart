@@ -145,15 +145,19 @@ class CircularSchedulePainter extends CustomPainter {
           canvas.save();
           canvas.translate(dx, dy);
 
-          if (angleMid >= pi / 2 && angleMid <= 3 * pi / 2) {
+          if (angleMid > pi / 2 && angleMid < 3 * pi / 2) {
+            // 하단이면 그대로
             canvas.rotate(angleMid - pi / 2);
           } else {
+            // 상단이면 180도 돌려서 글자 반전
             canvas.rotate(angleMid + pi / 2);
+            canvas.rotate(pi);
           }
 
           canvas.translate(-textPainter.width / 2, -textPainter.height / 2);
           textPainter.paint(canvas, Offset.zero);
           canvas.restore();
+
         }
       }
 
