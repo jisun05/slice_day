@@ -71,11 +71,41 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   void _changeBlockCount(int count) {
+    if (wakeUpTime == null) return;
+
+    final oldBlockCount = blockCount;
+    final oldBlocks = blocks;
+    final startDecimal = wakeUpTime!.hour + wakeUpTime!.minute / 60.0;
+    final sleepDecimal = sleepTime.hour + sleepTime.minute / 60.0;
+    final totalHours = (sleepDecimal >= startDecimal)
+        ? sleepDecimal - startDecimal
+        : 24 - startDecimal + sleepDecimal;
+
+    List<String> newBlocks = List.filled(count, '');
+
+    for (int i = 0; i < oldBlockCount; i++) {
+      if (oldBlocks[i].isEmpty) continue;
+
+      // 기존 블록의 시간 범위
+      final oldBlockStart = startDecimal + i * totalHours / oldBlockCount;
+      final blockMid = oldBlockStart + totalHours / oldBlockCount / 2;
+      final normalizedMid = blockMid % 24;
+
+      // 새로운 블록 인덱스 계산
+      final newIndex = ((normalizedMid - startDecimal + 24) % 24 / totalHours * count).floor();
+      final clampedIndex = newIndex.clamp(0, count - 1);
+
+      newBlocks[clampedIndex] = newBlocks[clampedIndex].isEmpty
+          ? oldBlocks[i]
+          : '${newBlocks[clampedIndex]}, ${oldBlocks[i]}';
+    }
+
     setState(() {
       blockCount = count;
-      blocks = List.filled(count, '');
+      blocks = newBlocks;
     });
   }
+
 
   void _selectSleepTime() async {
     int selectedHour = sleepTime.hour;

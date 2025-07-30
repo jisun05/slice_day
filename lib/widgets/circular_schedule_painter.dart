@@ -77,9 +77,14 @@ class CircularSchedulePainter extends CustomPainter {
       canvas.drawPath(path, paint);
 
       if (task.isNotEmpty) {
+        final maxLetters = (sweepAngle * radius / 10).floor().clamp(2, 15);
+        final displayText = task.length > maxLetters
+            ? task.substring(0, maxLetters) + '…'
+            : task;
+
         final textPainter = TextPainter(
           text: TextSpan(
-            text: task,
+            text: displayText,
             style: const TextStyle(
               color: Colors.black,
               fontSize: 13,
@@ -92,15 +97,19 @@ class CircularSchedulePainter extends CustomPainter {
 
         final angleMid = startAngle + sweepAngle / 2;
         final textRadius = (radius + innerRadius) / 2;
-        final offset = Offset(
-          center.dx + textRadius * cos(angleMid) - textPainter.width / 2,
-          center.dy + textRadius * sin(angleMid) - textPainter.height / 2,
-        );
-        textPainter.paint(canvas, offset);
+
+        final dx = center.dx + textRadius * cos(angleMid);
+        final dy = center.dy + textRadius * sin(angleMid);
+
+        canvas.save();
+        canvas.translate(dx, dy);
+        canvas.rotate(angleMid + pi / 2); // ↩️ 회전 방향 조정
+        textPainter.paint(canvas, Offset(-textPainter.width / 2, -textPainter.height / 2));
+        canvas.restore();
       }
 
-      _drawTimeLabel(canvas, center, labelRadius, blockStartHour, totalHours);
-      _drawTimeLabel(canvas, center, labelRadius, blockEndHour, totalHours);
+      _drawTimeLabel(canvas, center, labelRadius, blockStartHour % 24, totalHours);
+      _drawTimeLabel(canvas, center, labelRadius, blockEndHour % 24, totalHours);
     }
   }
 
@@ -124,12 +133,20 @@ class CircularSchedulePainter extends CustomPainter {
   }
 
   String _formatHour(double hour) {
-    final h = hour.floor() % 24;
-    final m = ((hour - h) * 60).round();
+    int h = hour.floor() % 24;
+    int m = ((hour - h) * 60).round();
+
+
+    if (m >= 60) {
+      m -= 60;
+      h = (h + 1) % 24;
+    }
+
     final hStr = h.toString().padLeft(2, '0');
     final mStr = m.toString().padLeft(2, '0');
     return '$hStr:$mStr';
   }
+
 
   @override
   bool shouldRepaint(covariant CircularSchedulePainter oldDelegate) {
